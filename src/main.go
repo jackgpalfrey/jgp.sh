@@ -9,6 +9,10 @@ import (
 	"github.com/gorilla/mux"
 )
 
+var words = Words{
+	wordList: make([]string, 0),
+}
+
 func home(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "JGP.SH")
 }
@@ -23,9 +27,9 @@ func healthcheck(w http.ResponseWriter, r *http.Request) {
 	log.Print("HEALTHCHECK")
 	w.Header().Set("Content-Type", "application/json")
 	report := HealthcheckReport{
-		Name: "JGP.SH",
+		Name:    "JGP.SH",
 		Version: "indev",
-		Status: "OK",
+		Status:  "OK",
 	}
 
 	err := json.NewEncoder(w).Encode(&report)
@@ -34,29 +38,41 @@ func healthcheck(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func redirect(w http.ResponseWriter, r *http.Request){
-	http.Redirect(w,r,"http://google.com", http.StatusPermanentRedirect)
+func redirect(w http.ResponseWriter, r *http.Request) {
+	http.Redirect(w, r, "http://google.com", http.StatusPermanentRedirect)
 }
 
 type CreateShortURLResponse struct {
 	Short string `json:"short"`
-	Long string `json:"long"`
+	Long  string `json:"long"`
 }
 
-func create(w http.ResponseWriter, r *http.Request){
+func create(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
+	short, err := words.getRandom()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, `{"error": "Server Error"}`)
+		return
+	}
+
 	response := CreateShortURLResponse{
-		Short: "unknown",
-		Long: "unknown",
+		Short: short,
+		Long:  "unknown",
 	}
 
 	json.NewEncoder(w).Encode(&response)
-	
 }
 
 func main() {
-	fmt.Printf("Hello, world")
+	log.Printf("Starting Server...")
+
+	loadErr := words.loadFrom("./words")
+	if loadErr != nil {
+		log.Fatal(loadErr)
+	}
+
 
 	router := mux.NewRouter()
 	router.HandleFunc("/", home)
@@ -65,8 +81,8 @@ func main() {
 	router.HandleFunc("/{code}", redirect)
 
 	log.Printf("Listening on port 8080\n")
-	err := http.ListenAndServe(":8080", router)
-	if err != nil {
-		log.Fatal(err)
+	serveErr := http.ListenAndServe(":8080", router)
+	if serveErr != nil {
+		log.Fatal(serveErr)
 	}
 }
