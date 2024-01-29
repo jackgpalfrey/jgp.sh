@@ -1,5 +1,25 @@
 services:
   app:
+    container_name: "jgpsh-app"
+    restart: always
     build: .
     ports:
       - "8080:8080"
+    depends_on:
+      - db
+    env_file:
+      - .env
+  db:
+    container_name: "jgpsh-db"
+    image: "postgres:16-alpine"
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "5432:5432"
+    volumes:
+      - jgpsh-db:/var/lib/postgresql/data
+
+volumes:
+  jgpsh-db:
+    driver: local
